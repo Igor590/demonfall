@@ -51,12 +51,7 @@ local Button = MainTab:CreateButton({
    Name = "Pegar posição atual (F9)",
    Callback = function()
 
-print("Iniciando monitoramento de posição. Pressione F9 para ver.")
-
-while true do
-    local player = game:GetService("Players").LocalPlayer
-    local character = player.Character
-    local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+print("Posição atual: ")
 
     if humanoidRootPart then
         local position = humanoidRootPart.Position
