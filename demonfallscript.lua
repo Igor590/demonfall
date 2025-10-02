@@ -65,13 +65,12 @@ for name, position in pairs(npcLocations) do
 end
 
 -- LÓGICA 2: AUTO-FARM DE TRINKETS
--- ETAPA 1 DO FARM: FAZER O PRÉ-SCAN FILTRADO
+-- ETAPA 1 DO FARM: FAZER O PRÉ-SCAN RÁPIDO
 print("==============================================")
 print("--- [ INICIANDO PRÉ-SCAN DE PONTOS DE FARM ] ---")
-print("Aguarde a interface aparecer...")
-
 local trinketSpawnPoints = {}
-local trinketCount = 0
+local spawnsConhecidos = {}
+task.wait(5)
 
 for i, descendant in pairs(game:GetService("Workspace"):GetDescendants()) do
     if descendant.Name == "Spawn" then
@@ -83,82 +82,81 @@ for i, descendant in pairs(game:GetService("Workspace"):GetDescendants()) do
             elseif descendant:IsA("ObjectValue") and descendant.Value and descendant.Value:IsA("BasePart") then
                 position = descendant.Value.Position
             end
-            if position then
-                trinketCount = trinketCount + 1
+            if position and not spawnsConhecidos[position] then
+                spawnsConhecidos[position] = true
                 table.insert(trinketSpawnPoints, position)
             end
         end
     end
 end
+print("--- [ PRÉ-SCAN FINALIZADO: " .. #trinketSpawnPoints .. " PONTOS INICIAIS ENCONTRADOS ] ---")
 
-print("--- [ PRÉ-SCAN FINALIZADO: " .. trinketCount .. " PONTOS DE FARM ENCONTRADOS ] ---")
-
--- ETAPA 2 DO FARM: LÓGICA DO LOOP (VERSÃO FINAL E RESPONSIVA)
+-- ETAPA 2 DO FARM: LÓGICA DO LOOP "QUE APRENDE"
 local farmingEnabled = false
-local delayAfterCollect = 1.5   -- Delay em segundos após coletar um item
-local delayAfterCycle = 120   -- Delay em segundos após verificar TODOS os pontos (2 minutos)
+local delayAfterCollect = 0.5
+local delayAfterCycle = 30
 
 local function startFarming()
-    print(">> AUTO-FARM INICIADO! <<")
+    print(">> AUTO-FARM 'QUE APRENDE' INICIADO! <<")
     local player = game:GetService("Players").LocalPlayer
     
     while farmingEnabled do
         print("==============================================")
-        print("Iniciando novo ciclo de farm em " .. #trinketSpawnPoints .. " pontos.")
+        print("Iniciando novo ciclo de farm em " .. #trinketSpawnPoints .. " pontos conhecidos.")
         
         for i, spawnPos in pairs(trinketSpawnPoints) do
-            if not farmingEnabled then print("Farm interrompido pelo usuário."); return end
+            if not farmingEnabled then print("Farm interrompido."); return end
             
             local character = player.Character
             local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
-            if not humanoidRootPart then print("Personagem não encontrado, aguardando..."); task.wait(5); continue end
+            if not humanoidRootPart then print("Personagem não encontrado."); task.wait(5); continue end
 
-            print("Verificando ponto de spawn #"..i.." em " .. tostring(spawnPos))
             humanoidRootPart.CFrame = CFrame.new(spawnPos) * CFrame.new(0, 3, 0)
-            task.wait(0.5)
+            task.wait(1)
 
-            -- ##### LÓGICA DE BUSCA LOCAL CORRIGIDA #####
-            local trinketFound = false
-            print("Iniciando busca local na área...")
+            -- LÓGICA DE COLETA E DESCOBERTA
             for _, descendant in pairs(game:GetService("Workspace"):GetDescendants()) do
                 if not farmingEnabled then break end
 
                 if descendant:IsA("ProximityPrompt") then
                     local itemModel = descendant:FindFirstAncestorOfClass("Model") or descendant.Parent
                     local itemPart = descendant.Parent
-                    
                     if itemPart and itemPart:IsA("BasePart") and (itemPart.Position - spawnPos).Magnitude < 30 and not itemModel:FindFirstChildOfClass("Humanoid") then
-                        print("Trinket '"..itemModel.Name.."' encontrada no ponto #"..i..". Forçando coleta...")
-                        
+                        print("Trinket '"..itemModel.Name.."' encontrada no ponto #"..i..". Coletando...")
                         humanoidRootPart.CFrame = itemPart.CFrame * CFrame.new(0, -2, 0)
                         task.wait(0.3)
-                        
                         descendant:InputHoldBegin()
-                        
-                        Rayfield:Notify({
-                            Title = "Item Coletado!",
-                            Content = "Você pegou: " .. itemModel.Name,
-                            Duration = 4
-                        })
-                        
+                        Rayfield:Notify({ Title = "Item Coletado!", Content = "Você pegou: " .. itemModel.Name, Duration = 4 })
                         task.wait(delayAfterCollect)
-                        trinketFound = true
-                        break 
+                        break
+                    end
+                end
+
+                if descendant.Name == "Spawn" then
+                    local parentModel = descendant:FindFirstAncestorOfClass("Model")
+                    if parentModel and not parentModel:FindFirstChildOfClass("Humanoid") then
+                        local position = nil
+                        if descendant:IsA("BasePart") then
+                            position = descendant.Position
+                        elseif descendant:IsA("ObjectValue") and descendant.Value and descendant.Value:IsA("BasePart") then
+                            position = descendant.Value.Position
+                        end
+                        
+                        if position and not spawnsConhecidos[position] then
+                            spawnsConhecidos[position] = true
+                            table.insert(trinketSpawnPoints, position)
+                            print("+++ NOVO PONTO DE SPAWN DESCOBERTO! Total agora: " .. #trinketSpawnPoints .. " +++")
+                            -- NOTIFICAÇÃO REMOVIDA, CONFORME PEDIDO
+                        end
                     end
                 end
             end
-            if not trinketFound then print("Nenhuma trinket no ponto #"..i..". Próximo.") end
-            -- #############################################
         end
         
         print("==============================================")
-        print("Ciclo completo. Aguardando " .. delayAfterCycle .. " segundos para o respawn...")
-
+        print("Ciclo completo. Aguardando " .. delayAfterCycle .. " segundos...")
         for i = delayAfterCycle, 1, -1 do
-            if not farmingEnabled then
-                print("Farm interrompido durante a espera.")
-                return
-            end
+            if not farmingEnabled then print("Farm interrompido."); return end
             task.wait(1)
         end
     end
@@ -171,9 +169,9 @@ end
 -- ===================================================================
 
 -- ABA 1: TELEPORTES
-local MainTab = Window:CreateTab("🚄|Teleports", nil)
-local MainSection = MainTab:CreateSection("Ferramentas")
-MainTab:CreateButton({
+local TeleportsTab = Window:CreateTab("🚄|Teleports", nil)
+local TeleportsSection = TeleportsTab:CreateSection("Ferramentas")
+TeleportsTab:CreateButton({
    Name = "Pegar posição atual (F9)",
    Callback = function()
         local player = game:GetService("Players").LocalPlayer
@@ -188,7 +186,7 @@ MainTab:CreateButton({
         end
     end
 })
-MainTab:CreateDropdown({
+TeleportsTab:CreateDropdown({
     Name = "NPC Teleports",
     Options = npcNames,
     CurrentOption = {npcNames[1]},
@@ -197,7 +195,6 @@ MainTab:CreateDropdown({
     Callback = function(Options)
         local selectedNpcName = Options[1]
         local targetPosition = npcLocations[selectedNpcName]
-        
         if targetPosition then
             local player = game:GetService("Players").LocalPlayer
             local character = player.Character
@@ -214,16 +211,13 @@ MainTab:CreateDropdown({
 
 -- ABA 2: AUTO-FARM
 local FarmTab = Window:CreateTab("🚜 | Auto-Farm", nil)
-FarmTab:CreateLabel("Encontrados " .. trinketCount .. " pontos de spawn de trinkets.")
-FarmTab:CreateLabel("Ligue para iniciar a coleta automática.")
 FarmTab:CreateDivider()
 FarmTab:CreateToggle({
-   Name = "Iniciar Auto-Farm de Trinkets",
+   Name = "Iniciar Auto-Farm Inteligente",
    CurrentValue = false,
    Flag = "AutoFarmToggle", 
    Callback = function(Value)
         farmingEnabled = Value
-        
         if farmingEnabled then
             task.spawn(startFarming)
         else
