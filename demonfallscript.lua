@@ -90,7 +90,7 @@ end
 
 print("--- [ PRÉ-SCAN FINALIZADO: " .. trinketCount .. " PONTOS DE FARM ENCONTRADOS ] ---")
 
--- ETAPA 2 DO FARM: LÓGICA DO LOOP
+-- ETAPA 2 DO FARM: LÓGICA DO LOOP (VERSÃO FINAL E RESPONSIVA)
 local farmingEnabled = false
 local delayAfterCollect = 1.5   -- Delay em segundos após coletar um item
 local delayAfterCycle = 120   -- Delay em segundos após verificar TODOS os pontos (2 minutos)
@@ -110,33 +110,54 @@ local function startFarming()
             local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
             if not humanoidRootPart then print("Personagem não encontrado, aguardando..."); task.wait(5); continue end
 
+            print("Verificando ponto de spawn #"..i.." em " .. tostring(spawnPos))
             humanoidRootPart.CFrame = CFrame.new(spawnPos) * CFrame.new(0, 3, 0)
             task.wait(0.5)
 
+            -- ##### LÓGICA DE BUSCA LOCAL CORRIGIDA #####
             local trinketFound = false
-            for _, item in pairs(game:GetService("Workspace"):GetChildren()) do
-                if (item.Position - spawnPos).Magnitude < 30 then
-                    local prompt = item:FindFirstDescendantOfClass("ProximityPrompt")
-                    if prompt and item.PrimaryPart and not item:FindFirstAncestorOfClass("Model"):FindFirstChildOfClass("Humanoid") then
-                        print("Trinket '"..item.Name.."' encontrada no ponto #"..i..". Forçando coleta...")
+            print("Iniciando busca local na área...")
+            for _, descendant in pairs(game:GetService("Workspace"):GetDescendants()) do
+                if not farmingEnabled then break end
+
+                if descendant:IsA("ProximityPrompt") then
+                    local itemModel = descendant:FindFirstAncestorOfClass("Model") or descendant.Parent
+                    local itemPart = descendant.Parent
+                    
+                    if itemPart and itemPart:IsA("BasePart") and (itemPart.Position - spawnPos).Magnitude < 30 and not itemModel:FindFirstChildOfClass("Humanoid") then
+                        print("Trinket '"..itemModel.Name.."' encontrada no ponto #"..i..". Forçando coleta...")
                         
-                        humanoidRootPart.CFrame = item.PrimaryPart.CFrame * CFrame.new(0, -2, 0)
+                        humanoidRootPart.CFrame = itemPart.CFrame * CFrame.new(0, -2, 0)
                         task.wait(0.3)
                         
-                        prompt:InputHoldBegin()
+                        descendant:InputHoldBegin()
+                        
+                        Rayfield:Notify({
+                            Title = "Item Coletado!",
+                            Content = "Você pegou: " .. itemModel.Name,
+                            Duration = 4
+                        })
                         
                         task.wait(delayAfterCollect)
                         trinketFound = true
-                        break
+                        break 
                     end
                 end
             end
             if not trinketFound then print("Nenhuma trinket no ponto #"..i..". Próximo.") end
+            -- #############################################
         end
         
         print("==============================================")
         print("Ciclo completo. Aguardando " .. delayAfterCycle .. " segundos para o respawn...")
-        task.wait(delayAfterCycle)
+
+        for i = delayAfterCycle, 1, -1 do
+            if not farmingEnabled then
+                print("Farm interrompido durante a espera.")
+                return
+            end
+            task.wait(1)
+        end
     end
     print(">> AUTO-FARM FINALIZADO. <<")
 end
@@ -148,9 +169,7 @@ end
 
 -- ABA 1: TELEPORTES
 local MainTab = Window:CreateTab("🚄|Teleports", nil)
-
 local MainSection = MainTab:CreateSection("Ferramentas")
-
 MainTab:CreateButton({
    Name = "Pegar posição atual (F9)",
    Callback = function()
@@ -166,7 +185,6 @@ MainTab:CreateButton({
         end
     end
 })
-
 MainTab:CreateDropdown({
     Name = "NPC Teleports",
     Options = npcNames,
@@ -181,15 +199,9 @@ MainTab:CreateDropdown({
             local player = game:GetService("Players").LocalPlayer
             local character = player.Character
             local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
-
             if humanoidRootPart then
                 humanoidRootPart.CFrame = CFrame.new(targetPosition)
-                
-                Rayfield:Notify({
-                    Title = "Teleporte",
-                    Content = "Movido para: " .. selectedNpcName,
-                    Duration = 4,
-                })
+                Rayfield:Notify({ Title = "Teleporte", Content = "Movido para: " .. selectedNpcName, Duration = 4 })
             else
                 print("Erro: Seu personagem não foi encontrado.")
             end
@@ -199,10 +211,9 @@ MainTab:CreateDropdown({
 
 -- ABA 2: AUTO-FARM
 local FarmTab = Window:CreateTab("🚜 | Auto-Farm", nil)
-
 FarmTab:CreateLabel("Encontrados " .. trinketCount .. " pontos de spawn de trinkets.")
+FarmTab:CreateLabel("Ligue para iniciar a coleta automática.")
 FarmTab:CreateDivider()
-
 FarmTab:CreateToggle({
    Name = "Iniciar Auto-Farm de Trinkets",
    CurrentValue = false,
