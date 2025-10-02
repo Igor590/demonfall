@@ -85,6 +85,46 @@ end
 table.sort(foundNpcNames)
 print("--- [ PRÉ-SCAN DE NPCS FINALIZADO: " .. npcCount .. " ALVOS ENCONTRADOS ] ---")
 
+local antiStunConnections = {} -- Tabela para guardar nossas conexões de eventos
+local NORMAL_WALKSPEED = 16 -- Velocidade de caminhada padrão, ajuste se for diferente no jogo
+
+local function applyAntiStun(character)
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return end
+
+    -- Remove conexões antigas se existirem, para evitar duplicatas
+    if antiStunConnections.PlatformStand then antiStunConnections.PlatformStand:Disconnect() end
+    if antiStunConnections.WalkSpeed then antiStunConnections.WalkSpeed:Disconnect() end
+
+    -- Vigia a propriedade PlatformStand
+    antiStunConnections.PlatformStand = humanoid:GetPropertyChangedSignal("PlatformStand"):Connect(function()
+        if humanoid.PlatformStand == true then
+            humanoid.PlatformStand = false
+            print("Anti-Stun: Efeito de PlatformStand bloqueado.")
+        end
+    end)
+
+    -- Vigia a propriedade WalkSpeed
+    antiStunConnections.WalkSpeed = humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+        if humanoid.WalkSpeed == 0 then
+            humanoid.WalkSpeed = NORMAL_WALKSPEED
+            print("Anti-Stun: Efeito de WalkSpeed = 0 bloqueado.")
+        end
+    end)
+end
+
+local function removeAntiStun()
+    for _, connection in pairs(antiStunConnections) do
+        connection:Disconnect()
+    end
+    table.clear(antiStunConnections)
+    -- Restaura a velocidade para o padrão caso o jogador desative o script enquanto estiver travado
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+        LocalPlayer.Character.Humanoid.WalkSpeed = NORMAL_WALKSPEED
+    end
+    print("Anti-Stun Desativado.")
+end
+
 -- PRÉ-SCAN 4: JOGADORES NO SERVIDOR
 local playerTeleportLocations = {}
 local playerNames = {}
@@ -314,6 +354,29 @@ FarmTab:CreateToggle({
         if farmingEnabled then task.spawn(startFarming)
         else print("Toggle desligado. O farm irá parar no próximo ciclo.") end
    end,
+})
+
+local PlayerTab = Window:CreateTab("🏃 | Player", nil)
+PlayerTab:CreateSection("Modificações de Combate")
+
+PlayerTab:CreateToggle({
+    Name = "Anti-Stun / No Knockback",
+    CurrentValue = false,
+    Flag = "AntiStunToggle",
+    Callback = function(Value)
+        if Value == true then
+            -- Se o personagem já existir, aplica o anti-stun nele
+            if LocalPlayer.Character then
+                applyAntiStun(LocalPlayer.Character)
+            end
+            -- Conecta uma função para reaplicar o anti-stun toda vez que o personagem respawnar
+            antiStunConnections.CharacterAdded = LocalPlayer.CharacterAdded:Connect(applyAntiStun)
+            print("Anti-Stun Ativado.")
+        else
+            -- Desativa e limpa todas as conexões
+            removeAntiStun()
+        end
+    end,
 })
 
 local VisualsTab = Window:CreateTab("👁️ | Visuals", nil)
