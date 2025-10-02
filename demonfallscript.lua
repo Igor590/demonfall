@@ -166,6 +166,64 @@ local function startFarming()
     print(">> AUTO-FARM FINALIZADO. <<")
 end
 
+local espEnabled = false
+local activeHighlights = {}
+
+local function updateEsp()
+    while espEnabled do
+        local charactersInView = {} -- Para limpar highlights de quem saiu/morreu
+
+        -- Passo 1: Escanear e destacar Players
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                local character = player.Character
+                table.insert(charactersInView, character)
+                if not activeHighlights[character] then
+                    local highlight = Instance.new("Highlight")
+                    highlight.FillColor = Color3.fromRGB(0, 170, 255)       -- Cor do preenchimento azul
+                    highlight.OutlineColor = Color3.fromRGB(170, 213, 255)  -- Cor do contorno azul claro
+                    highlight.Parent = character
+                    activeHighlights[character] = highlight
+                end
+            end
+        end
+
+        -- Passo 2: Escanear e destacar Mobs
+        for _, model in pairs(Workspace:GetChildren()) do
+            local humanoid = model:FindFirstChildOfClass("Humanoid")
+            if humanoid and humanoid.Health > 0 and not Players:GetPlayerFromCharacter(model) then
+                -- O filtro que você pediu: apenas personagens cujo pai é a Workspace principal
+                if model.Parent == Workspace then
+                    table.insert(charactersInView, model)
+                    if not activeHighlights[model] then
+                        local highlight = Instance.new("Highlight")
+                        highlight.FillColor = Color3.fromRGB(255, 0, 0)     -- Cor do preenchimento vermelho
+                        highlight.OutlineColor = Color3.fromRGB(255, 129, 129) -- Cor do contorno vermelho claro
+                        highlight.Parent = model
+                        activeHighlights[model] = highlight
+                    end
+                end
+            end
+        end
+
+        -- Passo 3: Limpar highlights de alvos que não existem mais
+        for character, highlight in pairs(activeHighlights) do
+            if not table.find(charactersInView, character) or not character.Parent or character:FindFirstChildOfClass("Humanoid").Health <= 0 then
+                highlight:Destroy()
+                activeHighlights[character] = nil
+            end
+        end
+        task.wait(0.5) -- O loop roda a cada meio segundo
+    end
+
+    -- Limpeza final quando o toggle é desligado
+    for character, highlight in pairs(activeHighlights) do
+        highlight:Destroy()
+    end
+    activeHighlights = {}
+    print("ESP Desativado. Highlights removidos.")
+end
+
 
 -- ===================================================================
 -- // SEÇÃO DE INTERFACE (CRIADA APÓS TODOS OS SCANS) //
@@ -256,4 +314,19 @@ FarmTab:CreateToggle({
         if farmingEnabled then task.spawn(startFarming)
         else print("Toggle desligado. O farm irá parar no próximo ciclo.") end
    end,
+})
+
+local VisualsTab = Window:CreateTab("👁️ | Visuals", nil)
+VisualsTab:CreateSection("ESP")
+VisualsTab:CreateToggle({
+    Name = "Player & Mob ESP",
+    CurrentValue = false,
+    Flag = "EspToggle",
+    Callback = function(Value)
+        espEnabled = Value
+        if espEnabled then
+            task.spawn(updateEsp)
+        end
+        -- A limpeza agora acontece naturalmente quando o loop termina
+    end,
 })
