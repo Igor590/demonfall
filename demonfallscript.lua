@@ -75,7 +75,7 @@ end
 end
 })
 
-local Dropdown = Tab:CreateDropdown({
+local Dropdown = MainTab:CreateDropdown({
    Name = "Dropdown Example",
    Options = {"Option 1","Option 2"},
    CurrentOption = {"Option 1"},
