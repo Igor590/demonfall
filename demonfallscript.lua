@@ -31,6 +31,8 @@ Rayfield:Notify({
 -- ===================================================================
 print("==============================================")
 print("--- [ INICIANDO PRÉ-SCANS GLOBAIS ] ---")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 
 -- PRÉ-SCAN 1: TELEPORTES MANUAIS
 local manualNpcLocations = {
@@ -65,7 +67,7 @@ local npcCount = 0
 for i, descendant in pairs(game:GetService("Workspace"):GetDescendants()) do
     if descendant:IsA("Humanoid") then
         local model = descendant.Parent
-        local player = game:GetService("Players"):GetPlayerFromCharacter(model)
+        local player = Players:GetPlayerFromCharacter(model)
         local parentName = model.Parent.Name
         if not player and (parentName == "Npcs" or parentName == "Shops") then
             local rootPart = model:FindFirstChild("HumanoidRootPart")
@@ -82,11 +84,28 @@ end
 table.sort(foundNpcNames)
 print("--- [ PRÉ-SCAN DE NPCS FINALIZADO: " .. npcCount .. " ALVOS ENCONTRADOS ] ---")
 
+-- PRÉ-SCAN 4: JOGADORES NO SERVIDOR
+local playerTeleportLocations = {}
+local playerNames = {}
+for _, player in pairs(Players:GetPlayers()) do
+    if player ~= LocalPlayer then
+        table.insert(playerNames, player.Name)
+        playerTeleportLocations[player.Name] = player
+    end
+end
+if #playerNames > 0 then
+    table.insert(playerNames, 1, "-- Selecione um Jogador --")
+else
+    playerNames = {"Nenhum outro jogador encontrado"}
+end
+print("--- [ PRÉ-SCAN DE JOGADORES FINALIZADO: " .. #playerTeleportLocations .. " JOGADORES ENCONTRADOS ] ---")
 
--- LÓGICA DO AUTO-FARM "QUE APRENDE" (AGORA MAIS RÁPIDO)
+
+-- LÓGICA DO AUTO-FARM "QUE APRENDE"
 local farmingEnabled = false
-local delayAfterCollect = 0.5 -- Reduzido para 0.5 segundos
-local delayAfterCycle = 60    -- Reduzido para 1 minuto
+local delayAfterCollect = 1.5
+local delayAfterCycle = 120
+local spawnsConhecidos = {} -- Adicionado para a lógica de aprendizado
 
 local function startFarming()
     print(">> AUTO-FARM 'QUE APRENDE' INICIADO! <<")
@@ -96,36 +115,40 @@ local function startFarming()
         print("Iniciando novo ciclo de farm em " .. #trinketSpawnPoints .. " pontos conhecidos.")
         for i, spawnPos in pairs(trinketSpawnPoints) do
             if not farmingEnabled then print("Farm interrompido."); return end
+            
             local character = player.Character
             local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
             if not humanoidRootPart then print("Personagem não encontrado."); task.wait(5); continue end
-            humanoidRootPart.CFrame = CFrame.new(spawnPos) * CFrame.new(0, 3, 0); task.wait(0.5)
+            
+            humanoidRootPart.CFrame = CFrame.new(spawnPos) * CFrame.new(0, 3, 0)
+            task.wait(1)
             
             local trinketFound = false
             for _, descendant in pairs(game:GetService("Workspace"):GetDescendants()) do
                 if not farmingEnabled then break end
+                
                 if descendant:IsA("ProximityPrompt") then
                     local itemModel = descendant:FindFirstAncestorOfClass("Model") or descendant.Parent
                     local itemPart = descendant.Parent
                     if itemPart and itemPart:IsA("BasePart") and (itemPart.Position - spawnPos).Magnitude < 30 and not itemModel:FindFirstChildOfClass("Humanoid") then
-                        -- LOG ADICIONADO DE VOLTA
-                        print(">> Trinket '"..itemModel.Name.."' encontrada no ponto #"..i..". Coletando...")
-                        
+                        print("Trinket '"..itemModel.Name.."' encontrada no ponto #"..i..". Coletando...")
                         humanoidRootPart.CFrame = itemPart.CFrame * CFrame.new(0, -2, 0); task.wait(0.3)
                         descendant:InputHoldBegin()
                         Rayfield:Notify({ Title = "Item Coletado!", Content = "Você pegou: " .. itemModel.Name, Duration = 4 })
-                        task.wait(delayAfterCollect); 
-                        trinketFound = true; 
+                        task.wait(delayAfterCollect)
+                        trinketFound = true
                         break
                     end
                 end
+
                 if descendant.Name == "Spawn" then
                     local parentModel = descendant:FindFirstAncestorOfClass("Model")
                     if parentModel and not parentModel:FindFirstChildOfClass("Humanoid") then
                         local position = nil
                         if descendant:IsA("BasePart") then position = descendant.Position
                         elseif descendant:IsA("ObjectValue") and descendant.Value and descendant.Value:IsA("BasePart") then position = descendant.Value.Position end
-                        if position and not table.find(trinketSpawnPoints, position) then
+                        if position and not spawnsConhecidos[position] then
+                            spawnsConhecidos[position] = true
                             table.insert(trinketSpawnPoints, position)
                             print("+++ NOVO PONTO DE SPAWN DESCOBERTO! Total agora: " .. #trinketSpawnPoints .. " +++")
                         end
@@ -142,18 +165,19 @@ local function startFarming()
     print(">> AUTO-FARM FINALIZADO. <<")
 end
 
+
 -- ===================================================================
 -- // SEÇÃO DE INTERFACE (CRIADA APÓS TODOS OS SCANS) //
 -- ===================================================================
 
--- ABA 1: TELEPORTES MANUAIS
-local TeleportsTab = Window:CreateTab("🚄|Teleports", nil)
+-- ABA 1: TELEPORTES (AGORA COMPLETA)
+local TeleportsTab = Window:CreateTab("📍| Teleportes", nil)
+
 TeleportsTab:CreateSection("Ferramentas")
 TeleportsTab:CreateButton({
    Name = "Pegar posição atual (F9)",
    Callback = function()
-        local player = game:GetService("Players").LocalPlayer
-        local character = player.Character
+        local character = LocalPlayer.Character
         local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
         if humanoidRootPart then
             print("Sua Posição Atual: " .. tostring(humanoidRootPart.Position))
@@ -161,19 +185,61 @@ TeleportsTab:CreateButton({
         end
     end
 })
+
+TeleportsTab:CreateSection("Destinos Salvos")
 TeleportsTab:CreateDropdown({
-    Name = "Destinos Salvos", Options = manualNpcNames, CurrentOption = {manualNpcNames[1]},
+    Name = "Destinos Manuais", Options = manualNpcNames, CurrentOption = {manualNpcNames[1]},
     MultipleOptions = false, Flag = "NpcTeleportDropdown",
     Callback = function(Options)
         local targetPosition = manualNpcLocations[Options[1]]
-        if targetPosition then
-            local player = game:GetService("Players").LocalPlayer
-            local character = player.Character
+        local character = LocalPlayer.Character
+        local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+        if targetPosition and humanoidRootPart then
+            humanoidRootPart.CFrame = CFrame.new(targetPosition)
+            Rayfield:Notify({ Title = "Teleporte", Content = "Movido para: " .. Options[1], Duration = 4 })
+        end
+    end,
+})
+
+TeleportsTab:CreateSection("NPCs & Lojas")
+TeleportsTab:CreateDropdown({
+    Name = "NPCs e Lojas ("..npcCount..")", Options = #foundNpcNames > 0 and foundNpcNames or {"Nenhum encontrado"}, 
+    CurrentOption = {#foundNpcNames > 0 and foundNpcNames[1] or "Nenhum encontrado"},
+    MultipleOptions = false, Flag = "DynamicNpcDropdown",
+    Callback = function(Selected)
+        local targetPosition = foundNpcs[Selected[1]]
+        local character = LocalPlayer.Character
+        local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+        if targetPosition and humanoidRootPart then
+            humanoidRootPart.CFrame = CFrame.new(targetPosition) * CFrame.new(0, 3, 0)
+            Rayfield:Notify({ Title = "Teleporte", Content = "Movido para: " .. Selected[1], Duration = 3 })
+        end
+    end,
+})
+
+TeleportsTab:CreateSection("Jogadores")
+TeleportsTab:CreateDropdown({
+    Name = "Jogadores no Servidor ("..#playerTeleportLocations..")", Options = playerNames, 
+    CurrentOption = {playerNames[1]},
+    MultipleOptions = false, Flag = "PlayerTeleportDropdown",
+    Callback = function(Selected)
+        local targetPlayerName = Selected[1]
+        
+        if targetPlayerName == "-- Selecione um Jogador --" or targetPlayerName == "Nenhum outro jogador encontrado" then
+            return
+        end
+
+        local targetPlayer = playerTeleportLocations[targetPlayerName]
+        if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local character = LocalPlayer.Character
             local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
             if humanoidRootPart then
-                humanoidRootPart.CFrame = CFrame.new(targetPosition)
-                Rayfield:Notify({ Title = "Teleporte", Content = "Movido para: " .. Options[1], Duration = 4 })
+                local targetRootPart = targetPlayer.Character.HumanoidRootPart
+                humanoidRootPart.CFrame = targetRootPart.CFrame * CFrame.new(0, 5, 0)
+                Rayfield:Notify({ Title = "Teleporte", Content = "Seguindo: " .. targetPlayerName, Duration = 3 })
             end
+        else
+            Rayfield:Notify({ Title = "Erro", Content = "Não foi possível encontrar o personagem de " .. targetPlayerName, Duration = 4 })
         end
     end,
 })
@@ -183,30 +249,10 @@ local FarmTab = Window:CreateTab("🚜 | Auto-Farm", nil)
 FarmTab:CreateLabel("Inicie o farm para coletar e descobrir trinkets.")
 FarmTab:CreateDivider()
 FarmTab:CreateToggle({
-   Name = "Iniciar Auto-Farm Inteligente", CurrentValue = false, Flag = "AutoFarmToggle", 
+   Name = "Iniciar Auto-Farm 'que Aprende'", CurrentValue = false, Flag = "AutoFarmToggle", 
    Callback = function(Value)
         farmingEnabled = Value
         if farmingEnabled then task.spawn(startFarming)
         else print("Toggle desligado. O farm irá parar no próximo ciclo.") end
    end,
-})
-
--- ABA 3: TELEPORTE DE NPCS E LOJAS
-local NpcTeleportTab = Window:CreateTab("👤| NPC TPs", nil)
-NpcTeleportTab:CreateDropdown({
-    Name = "NPCs e Lojas ("..npcCount..")", Options = #foundNpcNames > 0 and foundNpcNames or {"Nenhum encontrado"}, 
-    CurrentOption = {#foundNpcNames > 0 and foundNpcNames[1] or "Nenhum encontrado"},
-    MultipleOptions = false, Flag = "DynamicNpcDropdown",
-    Callback = function(Selected)
-        local targetPosition = foundNpcs[Selected[1]]
-        if targetPosition then
-            local player = game:GetService("Players").LocalPlayer
-            local character = player.Character
-            local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
-            if humanoidRootPart then
-                humanoidRootPart.CFrame = CFrame.new(targetPosition) * CFrame.new(0, 3, 0)
-                Rayfield:Notify({ Title = "Teleporte", Content = "Movido para: " .. Selected[1], Duration = 3 })
-            end
-        end
-    end,
 })
