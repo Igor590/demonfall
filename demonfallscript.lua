@@ -37,8 +37,7 @@ local Window = Rayfield:CreateWindow({
    }
 })
 
-local MainTab = Window:CreateTab("🌹 | Main", nil) -- Title, Image
-local MainSection = MainTab:CreateSection("Main")
+local MainTab = Window:CreateTab("🚄|Teleports", nil) -- Title, Image
 
 Rayfield:Notify({
    Title = "Script Carregado!",
@@ -47,42 +46,63 @@ Rayfield:Notify({
    Image = nil,
 })
 
+local npcLocations = {
+    ["Hayakawa"] = Vector3.new(919, 757, -2256),
+    ["Vendedor de Joias (Hayakawa)"] = Vector3.new(827, 758, -2248),
+    ["Sopa (Hayakawa)"] = Vector3.new(560, 755, -2382),
+    ["Haori (Hayakawa)"] = Vector3.new(837, 757, -1988),
+    ["Caverna Oni"] = Vector3.new(-737, 695, -1513)
+}
+
+local npcNames = {}
+for name, position in pairs(npcLocations) do
+    table.insert(npcNames, name)
+end
+
+local MainSection = MainTab:CreateSection("Main")
+
 local Button = MainTab:CreateButton({
    Name = "Pegar posição atual (F9)",
    Callback = function()
-
--- Pega o jogador local
-local player = game:GetService("Players").LocalPlayer
-
--- Pega o personagem do jogador
-local character = player.Character
-
--- Encontra a parte principal do personagem que controla a posição (HumanoidRootPart)
-local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
-
--- Verifica se o personagem foi encontrado com sucesso
-if humanoidRootPart then
-    -- Se foi encontrado, pega a posição
-    local position = humanoidRootPart.Position
-    
-    -- Imprime a posição no console
-    print("Sua Posição Atual: " .. tostring(position))
-    print("Formato para Script: Vector3.new(" .. position.X .. ", " .. position.Y .. ", " .. position.Z .. ")")
-else
-    -- Se não foi encontrado, imprime uma mensagem de erro
-    print("Erro: Personagem não encontrado. Tente se mover e executar novamente.")
-end
-end
+        local player = game:GetService("Players").LocalPlayer
+        local character = player.Character
+        local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+        if humanoidRootPart then
+            local position = humanoidRootPart.Position
+            print("Sua Posição Atual: " .. tostring(position))
+            print("Formato para Script: Vector3.new(" .. position.X .. ", " .. position.Y .. ", " .. position.Z .. ")")
+        else
+            print("Erro: Personagem não encontrado. Tente se mover e executar novamente.")
+        end
+    end
 })
 
 local Dropdown = MainTab:CreateDropdown({
-   Name = "Dropdown Example",
-   Options = {"Option 1","Option 2"},
-   CurrentOption = {"Option 1"},
-   MultipleOptions = false,
-   Flag = "Dropdown1", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
-   Callback = function(Options)
-   -- The function that takes place when the selected option is changed
-   -- The variable (Options) is a table of strings for the current selected options
-   end,
+    Name = "NPC Teleports",
+    Options = npcNames,
+    CurrentOption = {npcNames[1]},
+    MultipleOptions = false,
+    Flag = "NpcTeleportDropdown",
+    Callback = function(Options)
+        local selectedNpcName = Options[1]
+        local targetPosition = npcLocations[selectedNpcName]
+        
+        if targetPosition then
+            local player = game:GetService("Players").LocalPlayer
+            local character = player.Character
+            local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+
+            if humanoidRootPart then
+                humanoidRootPart.CFrame = CFrame.new(targetPosition)
+                
+                Rayfield:Notify({
+                    Title = "Teleporte",
+                    Content = "Movido para: " .. selectedNpcName,
+                    Duration = 4,
+                })
+            else
+                print("Erro: Seu personagem não foi encontrado.")
+            end
+        end
+    end,
 })
