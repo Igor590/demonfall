@@ -40,6 +40,7 @@ local manualNpcLocations = {
     ["Sopa (Hayakawa)"] = Vector3.new(560, 755, -2382), ["Haori (Hayakawa)"] = Vector3.new(837, 757, -1988),
     ["Caverna Oni"] = Vector3.new(-737, 695, -1513), ["Okuyia Village"] = Vector3.new(-3200, 704, -1162),
     ["Okuyia Tavern"] = Vector3.new(-3419, 705, -1578), ["Urokodaki"] = Vector3.new(-922, 846, -990),
+    ["QG Slayers"] = Vector3.new(-1834, 871, -6391)
 }
 local manualNpcNames = {}
 for name, position in pairs(manualNpcLocations) do table.insert(manualNpcNames, name) end
