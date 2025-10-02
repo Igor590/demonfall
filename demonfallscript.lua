@@ -50,26 +50,39 @@ Rayfield:Notify({
 local Button = MainTab:CreateButton({
    Name = "Pegar posição atual (F9)",
    Callback = function()
-        -- Pega o jogador local
-        local player = game:GetService("Players").LocalPlayer
 
-        -- Pega o personagem do jogador
-        local character = player.Character
+-- Pega o jogador local
+local player = game:GetService("Players").LocalPlayer
 
-        -- Encontra a parte principal do personagem que controla a posição (HumanoidRootPart)
-        local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+-- Pega o personagem do jogador
+local character = player.Character
 
-        -- Verifica se o personagem foi encontrado com sucesso
-        if humanoidRootPart then
-            -- Se foi encontrado, pega a posição
-            local position = humanoidRootPart.Position
-            
-            -- Imprime a posição no console
-            print("Sua Posição Atual: " .. tostring(position))
-            print("Formato para Script: Vector3.new(" .. position.X .. ", " .. position.Y .. ", " .. position.Z .. ")")
-        else
-            -- Se não foi encontrado, imprime uma mensagem de erro
-            print("Erro: Personagem não encontrado. Tente se mover e executar novamente.")
-        end
-    end,
+-- Encontra a parte principal do personagem que controla a posição (HumanoidRootPart)
+local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
+
+-- Verifica se o personagem foi encontrado com sucesso
+if humanoidRootPart then
+    -- Se foi encontrado, pega a posição
+    local position = humanoidRootPart.Position
+    
+    -- Imprime a posição no console
+    print("Sua Posição Atual: " .. tostring(position))
+    print("Formato para Script: Vector3.new(" .. position.X .. ", " .. position.Y .. ", " .. position.Z .. ")")
+else
+    -- Se não foi encontrado, imprime uma mensagem de erro
+    print("Erro: Personagem não encontrado. Tente se mover e executar novamente.")
+end
+end
+})
+
+local Dropdown = Tab:CreateDropdown({
+   Name = "Dropdown Example",
+   Options = {"Option 1","Option 2"},
+   CurrentOption = {"Option 1"},
+   MultipleOptions = false,
+   Flag = "Dropdown1", -- A flag is the identifier for the configuration file, make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+   Callback = function(Options)
+   -- The function that takes place when the selected option is changed
+   -- The variable (Options) is a table of strings for the current selected options
+   end,
 })
