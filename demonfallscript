@@ -37,6 +37,9 @@ local Window = Rayfield:CreateWindow({
    }
 })
 
+local MainTab = Window:CreateTab("🌹 | Main", nil) -- Title, Image
+local MainSection = MainTab:CreateSection("Main")
+
 Rayfield:Notify({
    Title = "Script Carregado!",
    Content = "usa saporra direito",
@@ -44,17 +47,12 @@ Rayfield:Notify({
    Image = nil,
 })
 
-local MainTab = Window:CreateTab("🌹 | Main", nil) -- Title, Image
-local MainSection = Tab:CreateSection("Teleports")
-local Button = Tab:CreateButton({
+local Button = MainTab:CreateButton({
    Name = "Pegar posição atual (F9)",
    Callback = function()
-        -- Descomente a linha abaixo caso queira limpar o console a cada atualização
--- consoleclear()
 
 print("Iniciando monitoramento de posição. Pressione F9 para ver.")
 
--- Loop infinito para atualizar a posição
 while true do
     local player = game:GetService("Players").LocalPlayer
     local character = player.Character
