@@ -50,28 +50,26 @@ Rayfield:Notify({
 local Button = MainTab:CreateButton({
    Name = "Pegar posição atual (F9)",
    Callback = function()
+        -- Pega o jogador local
+        local player = game:GetService("Players").LocalPlayer
 
--- Pega o jogador local
-local player = game:GetService("Players").LocalPlayer
+        -- Pega o personagem do jogador
+        local character = player.Character
 
--- Pega o personagem do jogador
-local character = player.Character
+        -- Encontra a parte principal do personagem que controla a posição (HumanoidRootPart)
+        local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
 
--- Encontra a parte principal do personagem que controla a posição (HumanoidRootPart)
-local humanoidRootPart = character and character:FindFirstChild("HumanoidRootPart")
-
--- Verifica se o personagem foi encontrado com sucesso
-if humanoidRootPart then
-    -- Se foi encontrado, pega a posição
-    local position = humanoidRootPart.Position
-    
-    -- Imprime a posição no console
-    print("Sua Posição Atual: " .. tostring(position))
-    print("Formato para Script: Vector3.new(" .. position.X .. ", " .. position.Y .. ", " .. position.Z .. ")")
-else
-    -- Se não foi encontrado, imprime uma mensagem de erro
-    print("Erro: Personagem não encontrado. Tente se mover e executar novamente.")
-end
-end
-   end,
+        -- Verifica se o personagem foi encontrado com sucesso
+        if humanoidRootPart then
+            -- Se foi encontrado, pega a posição
+            local position = humanoidRootPart.Position
+            
+            -- Imprime a posição no console
+            print("Sua Posição Atual: " .. tostring(position))
+            print("Formato para Script: Vector3.new(" .. position.X .. ", " .. position.Y .. ", " .. position.Z .. ")")
+        else
+            -- Se não foi encontrado, imprime uma mensagem de erro
+            print("Erro: Personagem não encontrado. Tente se mover e executar novamente.")
+        end
+    end,
 })
