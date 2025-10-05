@@ -72,8 +72,7 @@ PlayerTab:CreateToggle({ Name = "Ativar Resistência (50%)", CurrentValue = fals
 PlayerTab:CreateSection("Modificações de Movimento")
 PlayerTab:CreateInput({
     Name = "Definir WalkSpeed",
-    -- CORREÇÃO APLICADA AQUI
-    PlaceholderText = "Padrão: 16", -- O nome correto é PlaceholderText
+    PlaceholderText = "Padrão: 16", -- CORREÇÃO FINAL APLICADA AQUI
     Flag = "WalkSpeedInput_EzyHub",
     Callback = function(Text)
         local speed = tonumber(Text)
