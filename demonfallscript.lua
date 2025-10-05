@@ -210,9 +210,10 @@ local espEnabled = false
 local activeHighlights = {}
 
 local function updateEsp()
-    -- Configurações da Barra de Vida (VALORES ALTERADOS PARA FICAR MAIOR)
-    local healthBarSize = UDim2.new(7, 0, 1, 0) -- Antes era (1.5, 0, 0.2, 0)
-    local healthBarOffset = Vector3.new(0, 2.5, 0) -- Antes era (0, 1.5, 0)
+    -- Configurações da Barra de Vida (MÉTODO E VALORES ALTERADOS)
+    -- Agora usando PIXELS (Offset) em vez de STUDS (Scale) para um tamanho constante na tela.
+    local healthBarSize = UDim2.new(0, 125, 0, 18) -- 125 pixels de largura, 18 pixels de altura.
+    local healthBarOffset = Vector3.new(0, 2.5, 0) -- Altura acima da cabeça.
     
     -- Cores (sem alteração)
     local healthBarBackgroundColor = Color3.fromRGB(20, 20, 20)
@@ -290,7 +291,7 @@ local function updateEsp()
             end
         end
         for character, data in pairs(activeHighlights) do
-            if not table.find(charactersInView, character) or not character.Parent or character:FindFirstChildOfClass("Humanoid").Health <= 0 then
+            if not table.find(charactersInView, character) or not character.Parent or character:FindFirstChildOf-Class("Humanoid").Health <= 0 then
                 if data.Highlight then data.Highlight:Destroy() end
                 if data.HealthGui then data.HealthGui:Destroy() end
                 if data.Connection then data.Connection:Disconnect() end
