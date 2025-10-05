@@ -210,18 +210,19 @@ local espEnabled = false
 local activeHighlights = {}
 
 local function updateEsp()
-    -- Configurações da Barra de Vida
-    local healthBarSize = UDim2.new(1.5, 0, 0.2, 0)
-    local healthBarOffset = Vector3.new(0, 1.5, 0)
+    -- Configurações da Barra de Vida (VALORES ALTERADOS PARA FICAR MAIOR)
+    local healthBarSize = UDim2.new(7, 0, 1, 0) -- Antes era (1.5, 0, 0.2, 0)
+    local healthBarOffset = Vector3.new(0, 2.5, 0) -- Antes era (0, 1.5, 0)
+    
+    -- Cores (sem alteração)
     local healthBarBackgroundColor = Color3.fromRGB(20, 20, 20)
-    local playerHealthColor = Color3.fromRGB(80, 80, 255) -- Um azul para vida de players
-    local mobHealthColor = Color3.fromRGB(255, 50, 50) -- O vermelho que você pediu
+    local playerHealthColor = Color3.fromRGB(80, 80, 255)
+    local mobHealthColor = Color3.fromRGB(255, 50, 50)
     local textColor = Color3.fromRGB(255, 255, 255)
 
     while espEnabled do
         local charactersInView = {}
 
-        -- Função interna para criar a barra de vida
         local function createHealthBar(character, healthColor)
             local humanoid = character:FindFirstChildOfClass("Humanoid")
             if not humanoid then return nil, nil end
@@ -253,9 +254,8 @@ local function updateEsp()
             text.TextScaled = true
             text.Parent = bg
             
-            -- Conecta o evento para atualizar a vida em tempo real
             local connection = humanoid.HealthChanged:Connect(function(newHealth)
-                if not gui.Parent then return end -- Se a GUI já foi destruída, não faz nada
+                if not gui.Parent then return end
                 bar.Size = UDim2.new(newHealth / humanoid.MaxHealth, 0, 1, 0)
                 text.Text = math.floor(newHealth) .. "/" .. math.floor(humanoid.MaxHealth)
             end)
@@ -264,7 +264,7 @@ local function updateEsp()
             return gui, connection
         end
 
-        -- Passo 1: Escanear Players
+        -- O resto da lógica de scan e limpeza continua a mesma
         for _, player in pairs(Players:GetPlayers()) do
             if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
                 local character = player.Character
@@ -276,8 +276,6 @@ local function updateEsp()
                 end
             end
         end
-
-        -- Passo 2: Escanear Mobs
         for _, model in pairs(Workspace:GetChildren()) do
             local humanoid = model:FindFirstChildOfClass("Humanoid")
             if humanoid and humanoid.Health > 0 and not Players:GetPlayerFromCharacter(model) then
@@ -291,8 +289,6 @@ local function updateEsp()
                 end
             end
         end
-
-        -- Passo 3: Limpar tudo de alvos que não existem mais
         for character, data in pairs(activeHighlights) do
             if not table.find(charactersInView, character) or not character.Parent or character:FindFirstChildOfClass("Humanoid").Health <= 0 then
                 if data.Highlight then data.Highlight:Destroy() end
@@ -303,8 +299,6 @@ local function updateEsp()
         end
         task.wait(0.5)
     end
-
-    -- Limpeza final quando o toggle é desligado
     for character, data in pairs(activeHighlights) do
         if data.Highlight then data.Highlight:Destroy() end
         if data.HealthGui then data.HealthGui:Destroy() end
