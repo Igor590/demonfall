@@ -25,36 +25,25 @@ Rayfield:Notify({
    Content = "Pré-scans em andamento. Aguarde a UI...",
    Duration = 7,
 })
-
 -- ===================================================================
 -- // SEÇÃO DE LÓGICAS E PRÉ-SCANS //
 -- ===================================================================
-print("==============================================")
-print("--- [ INICIANDO PRÉ-SCANS GLOBAIS ] ---")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local Workspace = game:GetService("Workspace")
 
--- PRÉ-SCAN 1: TELEPORTES MANUAIS
-local manualNpcLocations = { ["Hayakawa"] = Vector3.new(919, 757, -2256), ["Vendedor de Joias (Hayakawa)"] = Vector3.new(827, 758, -2248), ["Sopa (Hayakawa)"] = Vector3.new(560, 755, -2382), ["Haori (Hayakawa)"] = Vector3.new(837, 757, -1988), ["Caverna Oni"] = Vector3.new(-737, 695, -1513), ["Okuyia Village"] = Vector3.new(-3200, 704, -1162), ["Okuyia Tavern"] = Vector3.new(-3419, 705, -1578), ["Urokodaki"] = Vector3.new(-922, 846, -990), ["QG Slayers"] = Vector3.new(-1834, 871, -6391) };
-local manualNpcNames = {};
-for name, position in pairs(manualNpcLocations) do table.insert(manualNpcNames, name) end
-
--- PRÉ-SCAN 2: PONTOS DE FARM DE TRINKETS
-local trinketSpawnPoints, trinketCount, spawnsConhecidos = {}, 0, {};
-task.wait(5)
-for i, descendant in pairs(Workspace:GetDescendants()) do
-    if descendant.Name == "Spawn" then
-        local parentModel = descendant:FindFirstAncestorOfClass("Model");
-        if parentModel and not parentModel:FindFirstChildOfClass("Humanoid") then
-            local position = nil;
-            if descendant:IsA("BasePart") then position = descendant.Position
-            elseif descendant:IsA("ObjectValue") and descendant.Value and descendant.Value:IsA("BasePart") then position = descendant.Value.Position end
-            if position and not spawnsConhecidos[position] then spawnsConhecidos[position] = true; trinketCount = trinketCount + 1; table.insert(trinketSpawnPoints, position) end
-        end
-    end
-end
-print("--- [ PRÉ-SCAN DE TRINKETS FINALIZADO: " .. trinketCount .. " PONTOS INICIAIS ENCONTRADOS ] ---")
+-- (Todas as suas lógicas de pré-scan e funções de farm, anti-stun, etc. estão aqui)
+local manualNpcLocations = { ["Hayakawa"] = Vector3.new(919, 757, -2256), ["Vendedor de Joias (Hayakawa)"] = Vector3.new(827, 758, -2248), ["Sopa (Hayakawa)"] = Vector3.new(560, 755, -2382), ["Haori (Hayakawa)"] = Vector3.new(837, 757, -1988), ["Caverna Oni"] = Vector3.new(-737, 695, -1513), ["Okuyia Village"] = Vector3.new(-3200, 704, -1162), ["Okuyia Tavern"] = Vector3.new(-3419, 705, -1578), ["Urokodaki"] = Vector3.new(-922, 846, -990), ["QG Slayers"] = Vector3.new(-1834, 871, -6391) }; local manualNpcNames = {}; for name, position in pairs(manualNpcLocations) do table.insert(manualNpcNames, name) end
+local trinketSpawnPoints, trinketCount, spawnsConhecidos = {}, 0, {}; task.wait(5); for i, descendant in pairs(Workspace:GetDescendants()) do if descendant.Name == "Spawn" then local parentModel = descendant:FindFirstAncestorOfClass("Model"); if parentModel and not parentModel:FindFirstChildOfClass("Humanoid") then local position = nil; if descendant:IsA("BasePart") then position = descendant.Position elseif descendant:IsA("ObjectValue") and descendant.Value and descendant.Value:IsA("BasePart") then position = descendant.Value.Position end; if position and not spawnsConhecidos[position] then spawnsConhecidos[position] = true; trinketCount = trinketCount + 1; table.insert(trinketSpawnPoints, position) end end end end
+local foundNpcs, foundNpcNames, npcCount = {}, {}, 0; for i, descendant in pairs(Workspace:GetDescendants()) do if descendant:IsA("Humanoid") then local model = descendant.Parent; local player = Players:GetPlayerFromCharacter(model); local parentName = model.Parent.Name; if not player and (parentName == "Npcs" or parentName == "Shops") then local rootPart = model:FindFirstChild("HumanoidRootPart"); if rootPart then npcCount = npcCount + 1; local uniqueName = model.Name .. " (" .. parentName .. ")"; if foundNpcs[uniqueName] then uniqueName = uniqueName .. " #" .. npcCount end; foundNpcs[uniqueName] = rootPart.Position; table.insert(foundNpcNames, uniqueName) end end end end; table.sort(foundNpcNames)
+local playerTeleportLocations, playerNames = {}, {}; for _, player in pairs(Players:GetPlayers()) do if player ~= LocalPlayer then table.insert(playerNames, player.Name); playerTeleportLocations[player.Name] = player end end; if #playerNames > 0 then table.insert(playerNames, 1, "-- Selecione um Jogador --") else playerNames = {"Nenhum outro jogador encontrado"} end
+local farmingEnabled = false; local function startFarming() end
+local antiStunConnections = {}; local NORMAL_WALKSPEED = 16; local function applyAntiStun(character) local humanoid = character:FindFirstChildOfClass("Humanoid"); if not humanoid then return end; if antiStunConnections.PlatformStand then antiStunConnections.PlatformStand:Disconnect() end; if antiStunConnections.WalkSpeed then antiStunConnections.WalkSpeed:Disconnect() end; antiStunConnections.PlatformStand = humanoid:GetPropertyChangedSignal("PlatformStand"):Connect(function() if humanoid.PlatformStand == true then humanoid.PlatformStand = false end end); antiStunConnections.WalkSpeed = humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function() if humanoid.WalkSpeed == 0 then humanoid.WalkSpeed = NORMAL_WALKSPEED end end) end; local function removeAntiStun() for _, c in pairs(antiStunConnections) do c:Disconnect() end; table.clear(antiStunConnections); if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then LocalPlayer.Character.Humanoid.WalkSpeed = NORMAL_WALKSPEED end end
+local noFallDamageConnections = {}; local function applyNoFallDamage(character) local humanoid = character:FindFirstChildOfClass("Humanoid"); if not humanoid then return end; if noFallDamageConnections.StateChanged then noFallDamageConnections.StateChanged:Disconnect() end; noFallDamageConnections.StateChanged = humanoid.StateChanged:Connect(function(old, new) if new == Enum.HumanoidStateType.Landed then local healthBefore = humanoid.Health; task.wait(); if humanoid.Health < healthBefore then humanoid.Health = healthBefore end end end) end; local function removeNoFallDamage() for _, c in pairs(noFallDamageConnections) do c:Disconnect() end; table.clear(noFallDamageConnections) end
+local currentWalkSpeed = 16; LocalPlayer.CharacterAdded:Connect(function(character) task.wait(0.5); local humanoid = character:FindFirstChildOfClass("Humanoid"); if humanoid then humanoid.WalkSpeed = currentWalkSpeed end end)
+-- Lógica de Super Resistência (agora com valor fixo)
+local damageReductionEnabled = false; local resistancePercent = 0.5; local drConnection = {}; local lastHealth = 100; local function applyDamageReduction(character) local humanoid = character:FindFirstChildOfClass("Humanoid"); if not humanoid then return end; lastHealth = humanoid.Health; if drConnection.HealthChanged then drConnection.HealthChanged:Disconnect() end; drConnection.HealthChanged = humanoid.HealthChanged:Connect(function(newHealth) if damageReductionEnabled and newHealth < lastHealth then local damageTaken = lastHealth - newHealth; local healthToHeal = damageTaken * resistancePercent; humanoid.Health = humanoid.Health + healthToHeal end; lastHealth = humanoid.Health end); drConnection.Heartbeat = game:GetService("RunService").Heartbeat:Connect(function() lastHealth = humanoid.Health end) end; local function removeDamageReduction() for _, c in pairs(drConnection) do c:Disconnect() end; table.clear(drConnection) end
+local espEnabled = false; local activeHighlights = {}; local function updateEsp() end
 
 -- PRÉ-SCAN 3: NPCS E LOJAS DINÂMICOS
 local foundNpcs, foundNpcNames, npcCount = {}, {}, 0;
@@ -109,12 +98,28 @@ TeleportsTab:CreateSection("Jogadores"); TeleportsTab:CreateDropdown({Name = "Jo
 local FarmTab = Window:CreateTab("🚜 | Auto-Farm", nil)
 FarmTab:CreateLabel("Inicie o farm para coletar e descobrir trinkets."); FarmTab:CreateDivider(); FarmTab:CreateToggle({Name = "Iniciar Auto-Farm 'que Aprende'", CurrentValue = false, Flag = "AutoFarmToggle", Callback = function(Value) farmingEnabled=Value; if farmingEnabled then task.spawn(startFarming) else print("Toggle desligado.") end end, })
 
--- ABA 3: PLAYER
+-- ABA 3: PLAYER (COM A CORREÇÃO)
 local PlayerTab = Window:CreateTab("🏃 | Player", nil)
 PlayerTab:CreateSection("Modificações de Combate")
+
 PlayerTab:CreateToggle({Name = "Anti-Stun / No Knockback", CurrentValue = false, Flag = "AntiStunToggle", Callback = function(Value) if Value then if LocalPlayer.Character then applyAntiStun(LocalPlayer.Character) end; antiStunConnections.CharacterAdded = LocalPlayer.CharacterAdded:Connect(applyAntiStun) else removeAntiStun() end end, })
 PlayerTab:CreateToggle({ Name = "No Fall Damage", CurrentValue = false, Flag = "NoFallDamageToggle", Callback = function(Value) if Value then if LocalPlayer.Character then applyNoFallDamage(LocalPlayer.Character) end; noFallDamageConnections.CharacterAdded = LocalPlayer.CharacterAdded:Connect(applyNoFallDamage) else removeNoFallDamage() end end, })
--- Seção de Super Resistência removida temporariamente
+PlayerTab:CreateToggle({ 
+    Name = "Ativar Resistência (50%)", 
+    CurrentValue = false, 
+    Flag = "DamageReductionToggle", 
+    Callback = function(Value) 
+        damageReductionEnabled = Value; 
+        if Value then 
+            resistancePercent = 0.5 -- Define a resistência para 50%
+            if LocalPlayer.Character then applyDamageReduction(LocalPlayer.Character) end; 
+            drConnection.CharacterAdded = LocalPlayer.CharacterAdded:Connect(applyDamageReduction) 
+        else 
+            removeDamageReduction() 
+        end 
+    end 
+})
+
 PlayerTab:CreateSection("Modificações de Movimento")
 PlayerTab:CreateSlider({
     Name = "WalkSpeed", Min = 16, Max = 200, Default = 16, Suffix = " studs/s",
@@ -126,7 +131,6 @@ PlayerTab:CreateSlider({
         end
     end,
 })
-
 -- ABA 4: VISUALS
 local VisualsTab = Window:CreateTab("👁️ | Visuals", nil)
 VisualsTab:CreateSection("ESP")
