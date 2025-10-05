@@ -160,7 +160,102 @@ local currentWalkSpeed = 16; LocalPlayer.CharacterAdded:Connect(function(charact
 local damageReductionEnabled = false; local resistancePercent = 0.5; local drConnection = {}; local lastHealth = 100; local function applyDamageReduction(character) local humanoid = character:FindFirstChildOfClass("Humanoid"); if not humanoid then return end; lastHealth = humanoid.Health; if drConnection.HealthChanged then drConnection.HealthChanged:Disconnect() end; drConnection.HealthChanged = humanoid.HealthChanged:Connect(function(newHealth) if damageReductionEnabled and newHealth < lastHealth then local damageTaken = lastHealth - newHealth; local healthToHeal = damageTaken * resistancePercent; humanoid.Health = humanoid.Health + healthToHeal end; lastHealth = humanoid.Health end); drConnection.Heartbeat = game:GetService("RunService").Heartbeat:Connect(function() lastHealth = humanoid.Health end) end; local function removeDamageReduction() for _, c in pairs(drConnection) do c:Disconnect() end; table.clear(drConnection) end
 
 -- LÓGICA ESP
-local espEnabled = false; local activeHighlights = {}; local function updateEsp() local healthBarSize = UDim2.new(0, 125, 0, 18); local healthBarOffset = Vector3.new(0, 2.5, 0); local healthBarBackgroundColor = Color3.fromRGB(20, 20, 20); local playerHealthColor = Color3.fromRGB(80, 80, 255); local mobHealthColor = Color3.fromRGB(255, 50, 50); local textColor = Color3.fromRGB(255, 255, 255); while espEnabled do local charactersInView = {}; local function createHealthBar(character, healthColor) local humanoid = character:FindFirstChildOfClass("Humanoid"); if not humanoid then return nil, nil end; local gui = Instance.new("BillboardGui"); gui.Adornee = character:FindFirstChild("Head") or character:FindFirstChild("HumanoidRootPart"); gui.Size = healthBarSize; gui.StudsOffset = healthBarOffset; gui.AlwaysOnTop = true; local bg = Instance.new("Frame"); bg.Size = UDim2.new(1, 0, 1, 0); bg.BackgroundColor3 = healthBarBackgroundColor; bg.BorderSizePixel = 0; bg.Parent = gui; local bar = Instance.new("Frame"); bar.Size = UDim2.new(humanoid.Health / humanoid.MaxHealth, 0, 1, 0); bar.BackgroundColor3 = healthColor; bar.BorderSizePixel = 0; bar.Parent = bg; local text = Instance.new("TextLabel"); text.Size = UDim2.new(1, 0, 1, 0); text.Text = math.floor(humanoid.Health) .. "/" .. math.floor(humanoid.MaxHealth); text.TextColor3 = textColor; text.BackgroundTransparency = 1; text.Font = Enum.Font.SourceSansBold; text.TextScaled = true; text.Parent = bg; local connection = humanoid.HealthChanged:Connect(function(newHealth) if not gui.Parent then return end; bar.Size = UDim2.new(newHealth / humanoid.MaxHealth, 0, 1, 0); text.Text = math.floor(newHealth) .. "/" .. math.floor(humanoid.MaxHealth) end); gui.Parent = game:GetService("CoreGui"); return gui, connection end; for _, player in pairs(Players:GetPlayers()) do if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then local character = player.Character; table.insert(charactersInView, character); if not activeHighlights[character] then local highlight = Instance.new("Highlight"); highlight.FillColor = Color3.fromRGB(0, 170, 255); highlight.OutlineColor = Color3.fromRGB(170, 213, 255); highlight.Parent = character; local healthGui, healthConnection = createHealthBar(character, playerHealthColor); activeHighlights[character] = { Highlight = highlight, HealthGui = healthGui, Connection = healthConnection } end end end; for _, model in pairs(Workspace:GetChildren()) do local humanoid = model:FindFirstChildOfClass("Humanoid"); if humanoid and humanoid.Health > 0 and not Players:GetPlayerFromCharacter(model) then if model.Parent == Workspace then table.insert(charactersInView, model); if not activeHighlights[model] then local highlight = Instance.new("Highlight"); highlight.FillColor = Color3.fromRGB(255, 0, 0); highlight.OutlineColor = Color3.fromRGB(255, 129, 129); highlight.Parent = model; local healthGui, healthConnection = createHealthBar(model, mobHealthColor); activeHighlights[model] = { Highlight = highlight, HealthGui = healthGui, Connection = healthConnection } end end end end; for character, data in pairs(activeHighlights) do if not table.find(charactersInView, character) or not character.Parent or character:FindFirstChildOfClass("Humanoid").Health <= 0 then if data.Highlight then data.Highlight:Destroy() end; if data.HealthGui then data.HealthGui:Destroy() end; if data.Connection then data.Connection:Disconnect() end; activeHighlights[character] = nil end end; task.wait(0.5) end; for _, data in pairs(activeHighlights) do if data.Highlight then data.Highlight:Destroy() end; if data.HealthGui then data.HealthGui:Destroy() end; if data.Connection then data.Connection:Disconnect() end end; activeHighlights = {}; print("ESP Desativado.") end
+local function updateEsp()
+    -- Configurações da Barra de Vida
+    local healthBarSize = UDim2.new(0, 125, 0, 18)
+    local healthBarOffset = Vector3.new(0, 2.5, 0)
+    local healthBarBackgroundColor = Color3.fromRGB(20, 20, 20)
+    local playerHealthColor = Color3.fromRGB(80, 80, 255)
+    local mobHealthColor = Color3.fromRGB(255, 50, 50)
+    local textColor = Color3.fromRGB(255, 255, 255)
+
+    while espEnabled do
+        local charactersInView = {}
+
+        local function createHealthBar(character, healthColor)
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if not humanoid then return nil end
+            
+            local gui = Instance.new("BillboardGui")
+            gui.Adornee = character:FindFirstChild("Head") or character:FindFirstChild("HumanoidRootPart")
+            gui.Size = healthBarSize
+            gui.StudsOffset = healthBarOffset
+            gui.AlwaysOnTop = true
+            
+            local bg = Instance.new("Frame", gui)
+            bg.Size = UDim2.new(1, 0, 1, 0)
+            bg.BackgroundColor3 = healthBarBackgroundColor
+            bg.BorderSizePixel = 0
+            
+            local bar = Instance.new("Frame", bg)
+            bar.Name = "HealthBar" -- Damos um nome para encontrar depois
+            bar.Size = UDim2.new(humanoid.Health / humanoid.MaxHealth, 0, 1, 0)
+            bar.BackgroundColor3 = healthColor
+            bar.BorderSizePixel = 0
+            
+            local text = Instance.new("TextLabel", bg)
+            text.Name = "HealthText" -- Damos um nome para encontrar depois
+            text.Size = UDim2.new(1, 0, 1, 0)
+            text.Text = math.floor(humanoid.Health) .. "/" .. math.floor(humanoid.MaxHealth)
+            text.TextColor3 = textColor
+            text.BackgroundTransparency = 1
+            text.Font = Enum.Font.SourceSansBold
+            text.TextScaled = true
+            
+            gui.Parent = game:GetService("CoreGui")
+            return gui
+        end
+
+        -- Passo 1 e 2: Escanear Players e Mobs (mesma lógica de antes)
+        local targets = {}
+        for _, player in pairs(Players:GetPlayers()) do if player ~= LocalPlayer and player.Character then table.insert(targets, { Target=player.Character, Color=playerHealthColor }) end end
+        for _, model in pairs(Workspace:GetChildren()) do local humanoid = model:FindFirstChildOfClass("Humanoid"); if humanoid and humanoid.Health > 0 and not Players:GetPlayerFromCharacter(model) and model.Parent == Workspace then table.insert(targets, { Target=model, Color=mobHealthColor }) end end
+        
+        for _, data in pairs(targets) do
+            local character = data.Target
+            table.insert(charactersInView, character)
+            if not activeHighlights[character] then
+                local highlight = Instance.new("Highlight"); highlight.FillColor = data.Color; highlight.OutlineColor = data.Color; highlight.Parent = character
+                local healthGui = createHealthBar(character, data.Color)
+                activeHighlights[character] = { Highlight = highlight, HealthGui = healthGui }
+            end
+        end
+        
+        -- ### NOVA ETAPA DE ATUALIZAÇÃO FORÇADA ###
+        -- A cada ciclo, atualizamos manualmente todas as barras de vida
+        for character, data in pairs(activeHighlights) do
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if humanoid and data.HealthGui then
+                local bar = data.HealthGui:FindFirstChild("HealthBar", true)
+                local text = data.HealthGui:FindFirstChild("HealthText", true)
+                if bar and text then
+                    local healthPercent = humanoid.Health / humanoid.MaxHealth
+                    bar.Size = UDim2.new(healthPercent, 0, 1, 0)
+                    text.Text = math.floor(humanoid.Health) .. "/" .. math.floor(humanoid.MaxHealth)
+                end
+            end
+        end
+
+        -- Passo de Limpeza
+        for character, data in pairs(activeHighlights) do
+            if not table.find(charactersInView, character) or not character.Parent or character:FindFirstChildOfClass("Humanoid").Health <= 0 then
+                if data.Highlight then data.Highlight:Destroy() end
+                if data.HealthGui then data.HealthGui:Destroy() end
+                activeHighlights[character] = nil
+            end
+        end
+        
+        task.wait(0.25) -- Reduzi o tempo de espera para a barra atualizar mais rápido
+    end
+
+    -- Limpeza final
+    for character, data in pairs(activeHighlights) do
+        if data.Highlight then data.Highlight:Destroy() end
+        if data.HealthGui then data.HealthGui:Destroy() end
+    end
+    activeHighlights = {}
+    print("ESP Desativado. Highlights e Barras de Vida removidos.")
+end
 
 -- ===================================================================
 -- // SEÇÃO DE INTERFACE (CRIADA APÓS TODOS OS SCANS) //
