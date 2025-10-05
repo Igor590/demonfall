@@ -210,60 +210,109 @@ local espEnabled = false
 local activeHighlights = {}
 
 local function updateEsp()
-    while espEnabled do
-        local charactersInView = {} -- Para limpar highlights de quem saiu/morreu
+    -- Configurações da Barra de Vida
+    local healthBarSize = UDim2.new(1.5, 0, 0.2, 0)
+    local healthBarOffset = Vector3.new(0, 1.5, 0)
+    local healthBarBackgroundColor = Color3.fromRGB(20, 20, 20)
+    local playerHealthColor = Color3.fromRGB(80, 80, 255) -- Um azul para vida de players
+    local mobHealthColor = Color3.fromRGB(255, 50, 50) -- O vermelho que você pediu
+    local textColor = Color3.fromRGB(255, 255, 255)
 
-        -- Passo 1: Escanear e destacar Players
+    while espEnabled do
+        local charactersInView = {}
+
+        -- Função interna para criar a barra de vida
+        local function createHealthBar(character, healthColor)
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            if not humanoid then return nil, nil end
+            
+            local gui = Instance.new("BillboardGui")
+            gui.Adornee = character:FindFirstChild("Head") or character:FindFirstChild("HumanoidRootPart")
+            gui.Size = healthBarSize
+            gui.StudsOffset = healthBarOffset
+            gui.AlwaysOnTop = true
+            
+            local bg = Instance.new("Frame")
+            bg.Size = UDim2.new(1, 0, 1, 0)
+            bg.BackgroundColor3 = healthBarBackgroundColor
+            bg.BorderSizePixel = 0
+            bg.Parent = gui
+            
+            local bar = Instance.new("Frame")
+            bar.Size = UDim2.new(humanoid.Health / humanoid.MaxHealth, 0, 1, 0)
+            bar.BackgroundColor3 = healthColor
+            bar.BorderSizePixel = 0
+            bar.Parent = bg
+            
+            local text = Instance.new("TextLabel")
+            text.Size = UDim2.new(1, 0, 1, 0)
+            text.Text = math.floor(humanoid.Health) .. "/" .. math.floor(humanoid.MaxHealth)
+            text.TextColor3 = textColor
+            text.BackgroundTransparency = 1
+            text.Font = Enum.Font.SourceSansBold
+            text.TextScaled = true
+            text.Parent = bg
+            
+            -- Conecta o evento para atualizar a vida em tempo real
+            local connection = humanoid.HealthChanged:Connect(function(newHealth)
+                if not gui.Parent then return end -- Se a GUI já foi destruída, não faz nada
+                bar.Size = UDim2.new(newHealth / humanoid.MaxHealth, 0, 1, 0)
+                text.Text = math.floor(newHealth) .. "/" .. math.floor(humanoid.MaxHealth)
+            end)
+            
+            gui.Parent = game:GetService("CoreGui")
+            return gui, connection
+        end
+
+        -- Passo 1: Escanear Players
         for _, player in pairs(Players:GetPlayers()) do
             if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
                 local character = player.Character
                 table.insert(charactersInView, character)
                 if not activeHighlights[character] then
-                    local highlight = Instance.new("Highlight")
-                    highlight.FillColor = Color3.fromRGB(0, 170, 255)       -- Cor do preenchimento azul
-                    highlight.OutlineColor = Color3.fromRGB(170, 213, 255)  -- Cor do contorno azul claro
-                    highlight.Parent = character
-                    activeHighlights[character] = highlight
+                    local highlight = Instance.new("Highlight"); highlight.FillColor = Color3.fromRGB(0, 170, 255); highlight.OutlineColor = Color3.fromRGB(170, 213, 255); highlight.Parent = character
+                    local healthGui, healthConnection = createHealthBar(character, playerHealthColor)
+                    activeHighlights[character] = { Highlight = highlight, HealthGui = healthGui, Connection = healthConnection }
                 end
             end
         end
 
-        -- Passo 2: Escanear e destacar Mobs
+        -- Passo 2: Escanear Mobs
         for _, model in pairs(Workspace:GetChildren()) do
             local humanoid = model:FindFirstChildOfClass("Humanoid")
             if humanoid and humanoid.Health > 0 and not Players:GetPlayerFromCharacter(model) then
-                -- O filtro que você pediu: apenas personagens cujo pai é a Workspace principal
                 if model.Parent == Workspace then
                     table.insert(charactersInView, model)
                     if not activeHighlights[model] then
-                        local highlight = Instance.new("Highlight")
-                        highlight.FillColor = Color3.fromRGB(255, 0, 0)     -- Cor do preenchimento vermelho
-                        highlight.OutlineColor = Color3.fromRGB(255, 129, 129) -- Cor do contorno vermelho claro
-                        highlight.Parent = model
-                        activeHighlights[model] = highlight
+                        local highlight = Instance.new("Highlight"); highlight.FillColor = Color3.fromRGB(255, 0, 0); highlight.OutlineColor = Color3.fromRGB(255, 129, 129); highlight.Parent = model
+                        local healthGui, healthConnection = createHealthBar(model, mobHealthColor)
+                        activeHighlights[model] = { Highlight = highlight, HealthGui = healthGui, Connection = healthConnection }
                     end
                 end
             end
         end
 
-        -- Passo 3: Limpar highlights de alvos que não existem mais
-        for character, highlight in pairs(activeHighlights) do
+        -- Passo 3: Limpar tudo de alvos que não existem mais
+        for character, data in pairs(activeHighlights) do
             if not table.find(charactersInView, character) or not character.Parent or character:FindFirstChildOfClass("Humanoid").Health <= 0 then
-                highlight:Destroy()
+                if data.Highlight then data.Highlight:Destroy() end
+                if data.HealthGui then data.HealthGui:Destroy() end
+                if data.Connection then data.Connection:Disconnect() end
                 activeHighlights[character] = nil
             end
         end
-        task.wait(0.5) -- O loop roda a cada meio segundo
+        task.wait(0.5)
     end
 
     -- Limpeza final quando o toggle é desligado
-    for character, highlight in pairs(activeHighlights) do
-        highlight:Destroy()
+    for character, data in pairs(activeHighlights) do
+        if data.Highlight then data.Highlight:Destroy() end
+        if data.HealthGui then data.HealthGui:Destroy() end
+        if data.Connection then data.Connection:Disconnect() end
     end
     activeHighlights = {}
-    print("ESP Desativado. Highlights removidos.")
+    print("ESP Desativado. Highlights e Barras de Vida removidos.")
 end
-
 
 -- ===================================================================
 -- // SEÇÃO DE INTERFACE (CRIADA APÓS TODOS OS SCANS) //
